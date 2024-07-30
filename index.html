@@ -88,6 +88,93 @@
             }
         }
 
+        function createLighting() {
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
+        }
+
+        function onMouseDown(event) {
+            event.preventDefault();
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(puzzle.children);
+            if (intersects.length > 0) {
+                selectedPiece = intersects[0].object;
+                const faceIndex = intersects[0].faceIndex;
+                const normal = intersects[0].face.normal;
+                rotationAxis.copy(normal).applyQuaternion(puzzleGroup.quaternion);
+            }
+        }
+
+        function onMouseUp(event) {
+            selectedPiece = null;
+        }
+
+        function onMouseMove(event) {
+            if (selectedPiece && !isRotating) {
+                isRotating = true;
+                const rotationAngle = Math.PI / 2;
+                rotatePuzzle(selectedPiece, rotationAxis, rotationAngle);
+            }
+        }
+
+        function rotatePuzzle(piece, axis, angle) {
+            const rotationMatrix = new THREE.Matrix4().makeRotationAxis(axis, angle);
+            puzzle.children.forEach(cube => {
+                const cubePosition = new THREE.Vector3().copy(cube.position);
+                cubePosition.applyMatrix4(rotationMatrix);
+                if (cubePosition.distanceTo(piece.position) < 0.1) {
+                    cube.position.copy(cubePosition);
+                    cube.quaternion.premultiply(new THREE.Quaternion().setFromRotationMatrix(rotationMatrix));
+                }
+            });
+            setTimeout(() => { isRotating = false; }, 300);
+        }
+
+        function randomizePuzzle() {
+            for (let i = 0; i < 20; i++) {
+                const randomPiece = puzzle.children[Math.floor(Math.random() * puzzle.children.length)];
+                const randomAxis = new THREE.Vector3(
+                    Math.random() - 0.5,
+                    Math.random() - 0.5,
+                    Math.random() - 0.5
+                ).normalize();
+                rotatePuzzle(randomPiece, randomAxis, Math.PI / 2);
+            }
+        }
+
+        function onKeyDown(event) {
+            if (event.key === 'r' || event.key === 'R') {
+                randomizePuzzle();
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            puzzleGroup.rotation.x += 0.005;
+            puzzleGroup.rotation.y += 0.005;
+
+            stars.forEach(star => {
+                star.position.z += 0.1;
+                if (star.position.z > 300) star.position.z -= 600;
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        init();
     </script>
 </body>
 </html>
